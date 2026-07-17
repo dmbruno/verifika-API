@@ -74,13 +74,14 @@ Por defecto queda escuchando en `http://127.0.0.1:5000`.
 
 ## Uso con curl
 
-Los ejemplos usan `http://127.0.0.1:5000` (local) — para probar contra
-producción, reemplazá por `https://web-production-cf40e.up.railway.app`.
+Los ejemplos usan la API en producción — para probar contra tu instancia
+local, reemplazá `https://web-production-cf40e.up.railway.app` por
+`http://127.0.0.1:5000`.
 
 ### Verificar una foto
 
 ```bash
-curl -X POST http://127.0.0.1:5000/verify \
+curl -X POST https://web-production-cf40e.up.railway.app/verify \
   -F "image=@foto.jpg" \
   -F "lat=-34.6037" \
   -F "lon=-58.3816"
@@ -103,7 +104,7 @@ también manda `lat`/`lon`, la API compara ambas ubicaciones y marca un
 ### Consultar una verificación
 
 ```bash
-curl http://127.0.0.1:5000/verify/8a753940-a2fc-4b62-981f-3da90bdd5881
+curl https://web-production-cf40e.up.railway.app/verify/8a753940-a2fc-4b62-981f-3da90bdd5881
 ```
 
 Respuesta:
