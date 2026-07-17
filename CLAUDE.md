@@ -6,6 +6,12 @@ usando hash SHA-256 + anclaje inmutable en blockchain (Polygon). Producto standa
 consumible por cualquier cliente (mutual de seguros, app de delivery, etc.) vía API.
 NO tiene frontend obligatorio — el frontend, si existe, es un cliente más de esta API.
  
+## Deploy
+- Hosteado en Railway: `https://web-production-cf40e.up.railway.app`
+- Servidor de producción: gunicorn (`Procfile`), no el `flask run` de desarrollo
+- SQLite vive en un volumen persistente de Railway montado en `/data`
+  (variable `DATABASE_PATH=/data/verifika.db`, ver `app/db.py`)
+
 ## Alcance actual (MVP en testnet)
 - Solo API REST, sin frontend, sin panel de administración todavía
 - Red: Polygon Amoy (testnet) — NO mainnet todavía, eso es Fase 6 futura

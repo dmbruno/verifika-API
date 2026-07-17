@@ -10,6 +10,8 @@ fue editada ni su registro alterado.
 Es un producto standalone: no tiene frontend obligatorio. Este repo es solo
 la API.
 
+**API en producción (testnet):** `https://web-production-cf40e.up.railway.app`
+
 Para la especificación formal de los endpoints (pensada para compartir con
 clientes que van a integrar), ver [`docs/api-spec.md`](docs/api-spec.md).
 
@@ -71,6 +73,9 @@ flask run
 Por defecto queda escuchando en `http://127.0.0.1:5000`.
 
 ## Uso con curl
+
+Los ejemplos usan `http://127.0.0.1:5000` (local) — para probar contra
+producción, reemplazá por `https://web-production-cf40e.up.railway.app`.
 
 ### Verificar una foto
 
