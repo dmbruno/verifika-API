@@ -1,28 +1,58 @@
-# verifika-api
+# 📸 verifika-api
 
-API REST que certifica que una foto no fue alterada desde el momento de su
-captura. Calcula el hash SHA-256 de la imagen y de su metadata (timestamp,
-ubicación), y lo ancla de forma inmutable en la blockchain de Polygon (red
-Amoy, testnet). Cualquier cliente (una mutual de seguros, una app de delivery,
-etc.) puede integrar contra esta API para verificar más tarde que una foto no
-fue editada ni su registro alterado.
+![Python](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/flask-3.1-black?logo=flask&logoColor=white)
+![Solidity](https://img.shields.io/badge/solidity-0.8.20-363636?logo=solidity&logoColor=white)
+![Network](https://img.shields.io/badge/network-Polygon%20Amoy-8247E5?logo=polygon&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-pytest%20%E2%80%94%20no%20mocks-0A9EDC)
+![Status](https://img.shields.io/badge/status-MVP%20testnet-yellow)
 
-Es un producto standalone: no tiene frontend obligatorio. Este repo es solo
-la API.
+**API REST que certifica que una foto no fue alterada desde el momento de su
+captura**, calculando su hash y anclándolo de forma inmutable en la
+blockchain de Polygon. Producto standalone — cualquier cliente (una mutual
+de seguros, una app de delivery, etc.) puede integrar contra esta API para
+verificar más tarde que una foto no fue editada ni su registro alterado.
 
-**API en producción (testnet):** `https://web-production-cf40e.up.railway.app`
+No tiene frontend obligatorio: este repo es solo la API.
 
-Para la especificación formal de los endpoints (pensada para compartir con
-clientes que van a integrar), ver [`docs/api-spec.md`](docs/api-spec.md).
+> 🚀 **API en producción (testnet):**
+> [`https://web-production-cf40e.up.railway.app`](https://web-production-cf40e.up.railway.app)
 
-## Stack
+📄 Spec formal de los endpoints, autocontenida para integrar desde afuera:
+[`docs/api-spec.md`](docs/api-spec.md)
 
-- Backend: Python 3.11+, Flask
-- Blockchain: web3.py, contrato en Solidity (`contracts/HashRegistry.sol`), red Polygon Amoy (chainId 80002)
-- Persistencia: SQLite (sin ORM)
-- Imágenes / EXIF: Pillow
+---
 
-## Instalación local
+## 🧠 Cómo funciona, en una imagen
+
+```
+foto + lat/lon (opcional)
+        │
+        ▼
+  hash SHA-256 de imagen + timestamp + ubicación
+        │
+        ▼
+  anclado en Polygon Amoy (inmutable, on-chain)
+        │
+        ▼
+  { verification_id, verify_url }
+```
+
+Después, con `GET /verify/<id>` cualquiera puede confirmar que ese registro
+sigue siendo exactamente el mismo que se ancló — si algo se alteró después,
+la verificación falla.
+
+## 🛠️ Stack
+
+| Capa | Tecnología |
+|---|---|
+| Backend | Python 3.11+, Flask |
+| Blockchain | web3.py, contrato en Solidity (`contracts/HashRegistry.sol`), Polygon Amoy (chainId `80002`) |
+| Persistencia | SQLite, sin ORM |
+| Imágenes / EXIF | Pillow |
+| Producción | Railway (gunicorn + volumen persistente) |
+
+## 📦 Instalación local
 
 ### 1. Cloná el repo y creá el entorno virtual
 
@@ -48,6 +78,9 @@ CONTRACT_ADDRESS=  # direccion del contrato HashRegistry ya deployado en Amoy
 SERVER_ADDRESS=    # direccion publica correspondiente a PRIVATE_KEY
 ```
 
+⚠️ **Nunca commitees `.env`** — el `.gitignore` ya lo excluye, pero doble
+chequealo antes de cada push.
+
 La wallet necesita POL de testnet para pagar el gas de cada anclaje — se
 consigue gratis en el [faucet oficial de Polygon](https://faucet.polygon.technology)
 (red Amoy).
@@ -72,13 +105,13 @@ flask run
 
 Por defecto queda escuchando en `http://127.0.0.1:5000`.
 
-## Uso con curl
+## 🌐 Uso con curl
 
-Los ejemplos usan la API en producción — para probar contra tu instancia
-local, reemplazá `https://web-production-cf40e.up.railway.app` por
+Los ejemplos apuntan a producción — para probar contra tu instancia local,
+reemplazá `https://web-production-cf40e.up.railway.app` por
 `http://127.0.0.1:5000`.
 
-### Verificar una foto
+### `POST /verify` — Verificar una foto
 
 ```bash
 curl -X POST https://web-production-cf40e.up.railway.app/verify \
@@ -87,7 +120,7 @@ curl -X POST https://web-production-cf40e.up.railway.app/verify \
   -F "lon=-58.3816"
 ```
 
-Respuesta:
+**Respuesta:**
 
 ```json
 {
@@ -101,13 +134,13 @@ también manda `lat`/`lon`, la API compara ambas ubicaciones y marca un
 `location_flag` si difieren más de 500 metros (ver
 [`docs/api-spec.md`](docs/api-spec.md) para el detalle completo).
 
-### Consultar una verificación
+### `GET /verify/<id>` — Consultar una verificación
 
 ```bash
 curl https://web-production-cf40e.up.railway.app/verify/8a753940-a2fc-4b62-981f-3da90bdd5881
 ```
 
-Respuesta:
+**Respuesta:**
 
 ```json
 {
@@ -118,11 +151,15 @@ Respuesta:
 ```
 
 `tx_hash` se puede verificar de forma independiente en
-`https://amoy.polygonscan.com/tx/<tx_hash>`.
+[amoy.polygonscan.com](https://amoy.polygonscan.com).
 
-## Tests
+> 🔁 **Nota:** una misma imagen no se puede verificar dos veces — el
+> contrato la rechaza on-chain (409), sin importar timestamp o ubicación
+> declarados en el segundo intento. Es intencional, no un bug.
 
-La suite de tests corre contra Polygon Amoy real — sin mocks — así que cada
+## 🧪 Tests
+
+La suite corre contra Polygon Amoy real — **sin mocks** — así que cada
 corrida ancla transacciones de verdad y consume POL de testnet de la wallet
 configurada en `.env`.
 
@@ -130,18 +167,17 @@ configurada en `.env`.
 pytest tests/ -v
 ```
 
-## Reglas de diseño
+## 📐 Reglas de diseño
 
-- Nunca se persiste la imagen original, solo su hash.
-- El hash que se ancla es el del **registro completo** (imagen + timestamp +
-  ubicación), no solo de la imagen — así cualquier campo alterado después de
-  anclado rompe la verificación.
-- Una misma imagen no puede verificarse dos veces — el contrato la rechaza
-  on-chain, sin importar el timestamp o la ubicación declarada en el segundo
-  intento.
-- `PRIVATE_KEY` y demás secrets solo por variables de entorno, nunca hardcodeados.
+- 🔒 Nunca se persiste la imagen original, solo su hash.
+- 🧬 El hash que se ancla es el del **registro completo** (imagen +
+  timestamp + ubicación), no solo de la imagen — así cualquier campo
+  alterado después de anclado rompe la verificación.
+- 🚫 Una misma imagen no puede verificarse dos veces — rechazo on-chain.
+- 🔑 `PRIVATE_KEY` y demás secrets solo por variables de entorno, nunca
+  hardcodeados.
 
-## Estado del proyecto
+## 📊 Estado del proyecto
 
 MVP en testnet (Polygon Amoy). No hay mainnet ni capa de IA todavía — ver
-`CLAUDE.md` para el detalle de fases.
+[`CLAUDE.md`](CLAUDE.md) para el detalle de fases.
