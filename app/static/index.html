@@ -138,6 +138,8 @@
     max-width:1040px; margin:0 auto;
     padding:18px clamp(20px,5vw,56px);
     display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap;
+    row-gap:10px;
     gap:16px;
   }
   .wordmark{
@@ -385,7 +387,7 @@
   }
   @media (max-width:640px){ .cert{ grid-template-columns:1fr; } }
   .cert-row{
-    display:flex; justify-content:space-between; gap:16px;
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 16px;
     padding:9px 0;
     border-bottom:1px dotted var(--line-strong);
     font-family:var(--mono); font-size:0.84rem;
@@ -437,7 +439,7 @@
 
   .manifest{ list-style:none; margin:0; padding:0; }
   .manifest li{
-    display:flex; justify-content:space-between; gap:12px;
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 12px;
     padding:9px 0;
     border-bottom:1px solid var(--line);
     font-family:var(--mono); font-size:0.82rem;
@@ -468,6 +470,33 @@
   }
   .fine-print b{ color:var(--ink); }
   .fine-print .sep{ opacity:0.5; }
+
+  /* ============================================================
+     RESPONSIVE — tablet and phone refinements
+     ============================================================ */
+  @media (max-width:760px){
+    nav.links{ order:3; width:100%; gap:18px; }
+  }
+
+  @media (max-width:640px){
+    body{ font-size:16px; }
+    .cert-row .v{ max-width:100%; }
+    .cert-stamp{ margin:4px auto 0; }
+    .term{ font-size:0.76rem; padding:16px; }
+    .stub{ flex:1 1 auto; text-align:center; }
+  }
+
+  @media (max-width:420px){
+    .badge-testnet{ font-size:0.62rem; padding:2px 6px; letter-spacing:0.05em; }
+    .wordmark{ font-size:0.95rem; }
+    nav.links{ font-size:0.76rem; gap:14px; }
+    .ticket{ padding-inline:18px; }
+    .reg-no, .led-time{ font-size:0.72rem; }
+    .entry-code .n{ font-size:1.5rem; }
+  }
+
+  /* never allow any single element to force page-level horizontal scroll */
+  img, svg{ max-width:100%; height:auto; }
 </style>
 </head>
 <body>
