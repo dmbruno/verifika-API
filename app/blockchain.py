@@ -1,3 +1,4 @@
+import json
 import os
 from web3 import Web3
 from web3.exceptions import ContractLogicError
@@ -5,8 +6,13 @@ from web3.middleware import ExtraDataToPOAMiddleware
 
 w3 = Web3(Web3.HTTPProvider(os.environ["POLYGON_RPC_URL"]))
 w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-with open("contracts/HashRegistry.abi.json") as f:
-    import json
+
+ABI_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "contracts",
+    "HashRegistry.abi.json",
+)
+with open(ABI_PATH) as f:
     CONTRACT_ABI = json.load(f)
 contract = w3.eth.contract(address=os.environ["CONTRACT_ADDRESS"], abi=CONTRACT_ABI)
 
