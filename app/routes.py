@@ -17,6 +17,11 @@ from app.location import distance_meters, extract_exif_gps
 MAX_DISTANCE_METERS = 500
 
 
+@app.route("/")
+def landing():
+    return app.send_static_file("index.html")
+
+
 @app.route("/verify", methods=["POST"])
 def verify():
     if "image" not in request.files:

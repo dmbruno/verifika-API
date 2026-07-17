@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verifika — Registro de autenticidad fotográfica</title>
+<style>
+  /* ============================================================
+     DESIGN SYSTEM
+     Concept: a claim tag pulled from an evidence register — kraft
+     ticket stock, a rubber date-stamp in violet ink, and the
+     burnt-orange LED digits old cameras used to burn into the
+     corner of a print. Deliberately a single physical world
+     (paper + ink), so it does not re-theme for dark mode.
+     ============================================================ */
+  :root{
+    --paper: #ddd2b3;
+    --paper-deep: #c7b78c;
+    --paper-shadow: #a9976b;
+    --ink: #241d13;
+    --ink-soft: #5a5140;
+    --stamp: #4a2f7d;
+    --stamp-soft: #6b4aa3;
+    --led: #c8431e;
+    --led-glow: rgba(200,67,30,0.35);
+    --line: rgba(36,29,19,0.22);
+    --line-strong: rgba(36,29,19,0.4);
+
+    --mono: "Courier New", ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+
+    --measure: 62ch;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 1200px 600px at 15% -10%, rgba(255,255,255,0.12), transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family:var(--serif);
+    font-size:17px;
+    line-height:1.6;
+    overflow-x:hidden;
+    position:relative;
+  }
+
+  /* paper grain */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:1;
+    opacity:0.5;
+    mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  a{ color:var(--stamp); text-decoration-thickness:1.5px; text-underline-offset:3px; }
+  a:hover{ color:var(--led); }
+  a:focus-visible, button:focus-visible{
+    outline:2px solid var(--led);
+    outline-offset:3px;
+  }
+
+  h1,h2,h3{
+    font-family:var(--mono);
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:-0.01em;
+    text-wrap:balance;
+    color:var(--ink);
+    margin:0;
+  }
+
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:0.76rem;
+    font-weight:700;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--stamp);
+    display:flex;
+    align-items:center;
+    gap:0.6em;
+  }
+  .eyebrow::before{
+    content:"";
+    width:1.4em; height:1px;
+    background:var(--stamp);
+    display:inline-block;
+  }
+
+  .wrap{
+    position:relative;
+    z-index:2;
+    max-width:1040px;
+    margin:0 auto;
+    padding-inline:clamp(20px, 5vw, 56px);
+  }
+
+  code, .mono{ font-family:var(--mono); }
+
+  .tabular{ font-variant-numeric:tabular-nums; }
+
+  /* ---------- perforated divider ---------- */
+  .perf{
+    height:14px;
+    background-image:radial-gradient(circle, var(--paper) 3px, transparent 3.2px);
+    background-size:20px 14px;
+    background-position:10px center;
+    position:relative;
+    z-index:2;
+  }
+  .perf::before, .perf::after{
+    content:"";
+    position:absolute; top:50%; width:16px; height:16px;
+    border-radius:50%;
+    background:var(--paper);
+    box-shadow:inset 0 0 0 1px var(--line);
+    transform:translateY(-50%);
+  }
+  .perf::before{ left:-8px; }
+  .perf::after{ right:-8px; }
+
+  /* ============================================================
+     NAV
+     ============================================================ */
+  header.nav{
+    position:relative; z-index:3;
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    max-width:1040px; margin:0 auto;
+    padding:18px clamp(20px,5vw,56px);
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px;
+  }
+  .wordmark{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:1.05rem;
+    letter-spacing:0.06em;
+    text-decoration:none;
+    color:var(--ink);
+    display:flex; align-items:center; gap:0.6em;
+  }
+  .wordmark .dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--led);
+    box-shadow:0 0 0 3px var(--led-glow);
+    flex:none;
+  }
+  nav.links{
+    display:flex; gap:clamp(14px,2vw,28px);
+    font-family:var(--mono);
+    font-size:0.82rem;
+    letter-spacing:0.02em;
+  }
+  nav.links a{ color:var(--ink-soft); text-decoration:none; }
+  nav.links a:hover{ color:var(--stamp); }
+  .badge-testnet{
+    font-family:var(--mono);
+    font-size:0.7rem;
+    letter-spacing:0.08em;
+    border:1px solid var(--line-strong);
+    padding:3px 8px;
+    color:var(--ink-soft);
+    white-space:nowrap;
+  }
+
+  /* ============================================================
+     HERO — the claim ticket
+     ============================================================ */
+  .hero{ padding:clamp(40px,7vw,80px) 0 0; }
+  .ticket{
+    position:relative;
+    background:linear-gradient(180deg, var(--paper-deep), var(--paper-deep) 60%, var(--paper-shadow));
+    border:1px solid var(--line-strong);
+    padding:clamp(28px,5vw,52px) clamp(24px,6vw,60px) clamp(40px,6vw,64px);
+    box-shadow:0 30px 60px -30px rgba(36,29,19,0.45), 0 2px 0 var(--paper-shadow);
+  }
+  .ticket-head{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    gap:20px; flex-wrap:wrap;
+    padding-bottom:18px;
+    border-bottom:1px dashed var(--line-strong);
+    margin-bottom:clamp(22px,4vw,34px);
+  }
+  .reg-no{
+    font-family:var(--mono); font-size:0.78rem; color:var(--ink-soft);
+    letter-spacing:0.04em;
+  }
+  .reg-no b{ color:var(--ink); }
+  .led-time{
+    font-family:var(--mono);
+    font-weight:700;
+    color:var(--led);
+    letter-spacing:0.05em;
+    font-size:0.85rem;
+    text-shadow:0 0 14px var(--led-glow);
+  }
+
+  .hero-grid{
+    display:grid;
+    grid-template-columns:1.3fr 0.7fr;
+    gap:clamp(24px,4vw,48px);
+    align-items:start;
+  }
+  @media (max-width:760px){
+    .hero-grid{ grid-template-columns:1fr; }
+  }
+
+  h1.claim{
+    font-size:clamp(2rem, 5.2vw, 3.4rem);
+    line-height:1.04;
+  }
+  h1.claim .accent{ color:var(--stamp); }
+
+  .lede{
+    font-family:var(--serif);
+    font-size:1.08rem;
+    color:var(--ink-soft);
+    max-width:var(--measure);
+    margin-top:18px;
+  }
+
+  .cta-row{
+    display:flex; gap:14px; flex-wrap:wrap;
+    margin-top:30px;
+  }
+  .stub{
+    font-family:var(--mono);
+    font-size:0.82rem;
+    font-weight:700;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    text-decoration:none;
+    padding:12px 18px;
+    border:1px solid var(--ink);
+    color:var(--ink);
+    position:relative;
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .stub::after{
+    content:"";
+    position:absolute; inset:3px;
+    border:1px dashed rgba(36,29,19,0.35);
+    pointer-events:none;
+  }
+  .stub:hover{ transform:translateY(-2px); box-shadow:3px 4px 0 var(--ink); color:var(--ink); }
+  .stub.primary{ background:var(--ink); color:var(--paper); }
+  .stub.primary:hover{ box-shadow:3px 4px 0 var(--stamp); }
+
+  /* the ink stamp */
+  .seal-wrap{
+    display:flex; justify-content:center; padding-top:6px;
+  }
+  .seal{
+    width:clamp(150px,20vw,190px);
+    aspect-ratio:1;
+    transform:rotate(-9deg);
+    opacity:0;
+    animation:stampIn 0.6s cubic-bezier(.2,1.6,.4,1) 0.35s forwards;
+    filter:drop-shadow(0 6px 10px rgba(74,47,125,0.25));
+  }
+  @keyframes stampIn{
+    0%{ opacity:0; transform:rotate(-9deg) scale(2.4); }
+    60%{ opacity:1; }
+    100%{ opacity:0.92; transform:rotate(-9deg) scale(1); }
+  }
+  .seal circle.ring{ fill:none; stroke:var(--stamp); stroke-width:2.4; }
+  .seal circle.ring.inner{ stroke-width:1.2; }
+  .seal text{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:9.6px;
+    letter-spacing:2.4px;
+    fill:var(--stamp);
+  }
+  .seal .center-mark{ fill:var(--stamp); }
+  .seal .center-txt{
+    font-family:var(--mono); font-weight:700; font-size:15px; fill:var(--stamp);
+    text-anchor:middle;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .seal{ animation:none; opacity:0.92; }
+  }
+
+  /* ============================================================
+     SECTIONS — shared
+     ============================================================ */
+  section{ padding:clamp(56px,8vw,96px) 0; position:relative; z-index:2; }
+  .section-head{ max-width:var(--measure); margin-bottom:clamp(28px,4vw,44px); }
+  h2.section-title{
+    font-size:clamp(1.5rem,3.4vw,2.1rem);
+    margin-top:12px;
+  }
+  .reveal{
+    opacity:0; transform:translateY(16px);
+    transition:opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.in{ opacity:1; transform:none; }
+  @media (prefers-reduced-motion:reduce){
+    .reveal{ opacity:1; transform:none; transition:none; }
+  }
+
+  /* ---------- memo / problema ---------- */
+  .memo{
+    background:rgba(255,255,255,0.28);
+    border:1px solid var(--line);
+    border-left:3px solid var(--led);
+    padding:clamp(20px,3vw,30px) clamp(22px,3vw,32px);
+    max-width:var(--measure);
+    position:relative;
+  }
+  .memo::before{
+    content:"NOTA DE CASO";
+    position:absolute; top:-11px; left:20px;
+    background:var(--paper);
+    padding:0 8px;
+    font-family:var(--mono); font-size:0.68rem; letter-spacing:0.12em;
+    color:var(--ink-soft);
+  }
+  .memo p{ margin:0 0 12px; }
+  .memo p:last-child{ margin-bottom:0; }
+  .memo strong{ color:var(--ink); }
+
+  /* ---------- ledger entries ---------- */
+  .ledger{
+    border-top:1px solid var(--line-strong);
+  }
+  .entry{
+    display:grid;
+    grid-template-columns:110px 1fr;
+    gap:clamp(16px,3vw,32px);
+    padding:clamp(22px,3vw,30px) 0;
+    border-bottom:1px solid var(--line);
+  }
+  @media (max-width:640px){
+    .entry{ grid-template-columns:1fr; gap:8px; }
+  }
+  .entry-code{
+    font-family:var(--mono);
+    font-size:0.8rem;
+    color:var(--stamp);
+    font-weight:700;
+    letter-spacing:0.04em;
+    padding-top:2px;
+  }
+  .entry-code .n{ display:block; font-size:1.8rem; color:var(--ink); line-height:1; margin-bottom:6px; }
+  .entry h3{
+    font-size:1.05rem;
+    text-transform:none;
+    letter-spacing:0;
+    font-family:var(--serif);
+    font-weight:700;
+    margin-bottom:6px;
+  }
+  .entry p{ margin:0; color:var(--ink-soft); max-width:56ch; }
+  .entry .field{
+    display:inline-block; margin-top:10px;
+    font-family:var(--mono); font-size:0.78rem;
+    color:var(--ink-soft);
+    background:rgba(36,29,19,0.06);
+    border:1px solid var(--line);
+    padding:3px 8px;
+  }
+
+  /* ---------- certificate mock ---------- */
+  .cert{
+    border:1px solid var(--ink);
+    background:var(--paper-deep);
+    padding:clamp(22px,4vw,36px);
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:24px;
+    align-items:center;
+    position:relative;
+  }
+  @media (max-width:640px){ .cert{ grid-template-columns:1fr; } }
+  .cert-row{
+    display:flex; justify-content:space-between; gap:16px;
+    padding:9px 0;
+    border-bottom:1px dotted var(--line-strong);
+    font-family:var(--mono); font-size:0.84rem;
+  }
+  .cert-row:last-child{ border-bottom:none; }
+  .cert-row .k{ color:var(--ink-soft); }
+  .cert-row .v{ color:var(--ink); text-align:right; word-break:break-all; max-width:60%; }
+  .cert-row .v.ok{ color:var(--stamp); font-weight:700; }
+  .cert-stamp{
+    width:96px; height:96px; flex:none;
+    border:3px solid var(--stamp);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    transform:rotate(-8deg);
+    color:var(--stamp);
+    font-family:var(--mono); font-weight:700; font-size:0.72rem;
+    text-align:center; line-height:1.2;
+    letter-spacing:0.04em;
+  }
+
+  /* ---------- developers ---------- */
+  .dev-grid{
+    display:grid; grid-template-columns:1.1fr 0.9fr; gap:clamp(24px,4vw,40px);
+    align-items:start;
+  }
+  @media (max-width:760px){ .dev-grid{ grid-template-columns:1fr; } }
+
+  .term{
+    background:var(--ink);
+    color:#e8ddc4;
+    padding:20px 22px;
+    font-family:var(--mono);
+    font-size:0.84rem;
+    line-height:1.7;
+    overflow-x:auto;
+    position:relative;
+  }
+  .term::before{
+    content:"$ curl";
+    display:block;
+    color:#8a7f66;
+    margin-bottom:8px;
+    font-size:0.72rem;
+    letter-spacing:0.08em;
+  }
+  .term .flag{ color:#c8a34a; }
+  .term .str{ color:#e8ddc4; }
+  .term .cmt{ color:#8a7f66; }
+
+  .manifest{ list-style:none; margin:0; padding:0; }
+  .manifest li{
+    display:flex; justify-content:space-between; gap:12px;
+    padding:9px 0;
+    border-bottom:1px solid var(--line);
+    font-family:var(--mono); font-size:0.82rem;
+  }
+  .manifest li:first-child{ border-top:1px solid var(--line); }
+  .manifest .k{ color:var(--ink-soft); }
+  .manifest .v{ color:var(--ink); text-align:right; }
+
+  .link-list{ margin-top:22px; display:flex; flex-direction:column; gap:8px; }
+  .link-list a{
+    font-family:var(--mono); font-size:0.84rem; font-weight:700;
+    text-decoration:none;
+  }
+  .link-list a::after{ content:" →"; }
+
+  /* ---------- footer ---------- */
+  footer{
+    border-top:1px solid var(--line-strong);
+    padding:28px 0 40px;
+    position:relative; z-index:2;
+  }
+  .fine-print{
+    font-family:var(--mono);
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    display:flex; flex-wrap:wrap; gap:8px 18px;
+    letter-spacing:0.01em;
+  }
+  .fine-print b{ color:var(--ink); }
+  .fine-print .sep{ opacity:0.5; }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a href="#top" class="wordmark"><span class="dot"></span>VERIFIKA</a>
+    <nav class="links">
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#desarrolladores">Para desarrolladores</a>
+      <a href="https://github.com/dmbruno/verifika-API" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <span class="badge-testnet tabular">● TESTNET · POLYGON AMOY</span>
+  </div>
+</header>
+
+<div id="top"></div>
+
+<main class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="ticket">
+      <div class="ticket-head">
+        <div class="reg-no">REGISTRO N.º <b class="tabular">648cba52</b> · EMITIDO EN POLYGON AMOY</div>
+        <div class="led-time tabular">'26.07.17&nbsp; 15:31:50</div>
+      </div>
+
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow">Certificación de fotografías · on-chain</p>
+          <h1 class="claim">Esta foto queda<br>sellada en el <span class="accent">instante</span><br>en que se tomó.</h1>
+          <p class="lede">Verifika calcula la huella digital de una fotografía —imagen, momento y ubicación— y la ancla de forma inmutable en la blockchain de Polygon. Lo que se sella ahí, nadie lo puede alterar después. Ni el cliente, ni nosotros.</p>
+          <div class="cta-row">
+            <a class="stub primary" href="#desarrolladores">Ver documentación</a>
+            <a class="stub" href="https://amoy.polygonscan.com/address/0x6d152D528a6F079a85c341e8dd3ee0262B18aDAf" target="_blank" rel="noopener">Ver contrato on-chain</a>
+          </div>
+        </div>
+        <div class="seal-wrap">
+          <svg class="seal" viewBox="0 0 200 200" role="img" aria-label="Sello: verificado en Polygon Amoy">
+            <defs>
+              <path id="ringPath" d="M 100,100 m -76,0 a 76,76 0 1,1 152,0 a 76,76 0 1,1 -152,0" />
+            </defs>
+            <circle class="ring" cx="100" cy="100" r="88" />
+            <circle class="ring inner" cx="100" cy="100" r="64" />
+            <text>
+              <textPath href="#ringPath" startOffset="0%">VERIFICADO · POLYGON AMOY · VERIFICADO · POLYGON AMOY ·</textPath>
+            </text>
+            <path class="center-mark" d="M100 78 l8 8-20 20-12-12 6-6 6 6z" />
+            <text class="center-txt" x="100" y="128">SHA-256</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf"></div>
+
+  <!-- ============ PROBLEMA ============ -->
+  <section id="problema">
+    <div class="section-head reveal">
+      <p class="eyebrow">El problema</p>
+      <h2 class="section-title">¿Cómo sabés que esa foto es la que dice ser?</h2>
+    </div>
+    <div class="memo reveal">
+      <p>Un asegurado manda la foto de un choque para cobrar el siniestro. El caso queda «en revisión» tres semanas. En ese lapso, <strong>nadie puede garantizar</strong> que la imagen que finalmente ve el perito sea la misma que se subió el día uno — pudo ser reemplazada, editada, o reutilizada de un reclamo anterior.</p>
+      <p>Hoy, la respuesta habitual es <em>confiar</em>. Verifika reemplaza esa confianza por un registro público que ni siquiera nosotros podemos alterar en secreto.</p>
+    </div>
+  </section>
+
+  <div class="perf"></div>
+
+  <!-- ============ COMO FUNCIONA ============ -->
+  <section id="como-funciona">
+    <div class="section-head reveal">
+      <p class="eyebrow">Libro de registro</p>
+      <h2 class="section-title">Cuatro entradas, un sello inmutable</h2>
+    </div>
+
+    <div class="ledger">
+      <div class="entry reveal">
+        <div class="entry-code"><span class="n">01</span>CAPTURA</div>
+        <div>
+          <h3>La app del cliente sube la foto</h3>
+          <p>Multipart a <code>POST /verify</code>, con la latitud/longitud del dispositivo como dato opcional. Nunca se persiste la imagen en sí — solo se procesa una vez.</p>
+          <span class="field">image · lat · lon</span>
+        </div>
+      </div>
+
+      <div class="entry reveal">
+        <div class="entry-code"><span class="n">02</span>HUELLA</div>
+        <div>
+          <h3>Se calcula el hash del registro completo</h3>
+          <p>SHA-256 de la imagen + el timestamp del <em>servidor</em> (no del cliente) + la ubicación declarada. Cambiar un solo campo después cambia por completo el hash.</p>
+          <span class="field tabular">ca8c9541f68a…d62b231d</span>
+        </div>
+      </div>
+
+      <div class="entry reveal">
+        <div class="entry-code"><span class="n">03</span>ANCLAJE</div>
+        <div>
+          <h3>Ese hash se escribe en un smart contract</h3>
+          <p>En Polygon, público y permanente. El contrato además rechaza —on-chain— que una misma imagen se registre dos veces, sin importar qué timestamp o ubicación se declare la segunda vez.</p>
+          <span class="field">registerHash(imageHash, recordHash)</span>
+        </div>
+      </div>
+
+      <div class="entry reveal">
+        <div class="entry-code"><span class="n">04</span>CONSULTA</div>
+        <div>
+          <h3>Cualquiera puede verificarlo después</h3>
+          <p><code>GET /verify/&lt;id&gt;</code> recalcula el hash y lo compara contra lo anclado en cadena, en el momento de la consulta — no contra un valor guardado en caché.</p>
+          <span class="field">valid · tx_hash · location_flag</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="perf"></div>
+
+  <!-- ============ CERTIFICADO ============ -->
+  <section id="certificado">
+    <div class="section-head reveal">
+      <p class="eyebrow">Resultado real</p>
+      <h2 class="section-title">Así se ve una verificación</h2>
+    </div>
+    <div class="cert reveal">
+      <div>
+        <div class="cert-row"><span class="k">verification_id</span><span class="v tabular">648cba52-110a-4e5a-aeb0-aea21a556e38</span></div>
+        <div class="cert-row"><span class="k">tx_hash</span><span class="v tabular">915e15d9…f74bf265</span></div>
+        <div class="cert-row"><span class="k">location_flag</span><span class="v">null</span></div>
+        <div class="cert-row"><span class="k">valid</span><span class="v ok">true</span></div>
+      </div>
+      <div class="cert-stamp">VÁLIDO<br>ON-CHAIN</div>
+    </div>
+  </section>
+
+  <div class="perf"></div>
+
+  <!-- ============ DESARROLLADORES ============ -->
+  <section id="desarrolladores">
+    <div class="section-head reveal">
+      <p class="eyebrow">Para desarrolladores</p>
+      <h2 class="section-title">Una API REST. Sin wallets, sin fricción.</h2>
+      <p class="lede">Quien llama a la API no toca la blockchain directamente — no necesita wallet, ni MATIC, ni saber que existe un contrato atrás. Nuestro servidor paga el gas y firma en nombre de todos.</p>
+    </div>
+
+    <div class="dev-grid">
+      <div class="reveal">
+        <div class="term"><span class="cmt"># certificar una foto</span>
+curl -X POST <span class="str">https://web-production-cf40e.up.railway.app/verify</span> \
+  <span class="flag">-F</span> <span class="str">"image=@foto.jpg"</span> \
+  <span class="flag">-F</span> <span class="str">"lat=-34.6037"</span> \
+  <span class="flag">-F</span> <span class="str">"lon=-58.3816"</span>
+
+<span class="cmt"># { "verification_id": "...", "verify_url": "/verify/..." }</span></div>
+      </div>
+
+      <div class="reveal">
+        <ul class="manifest">
+          <li><span class="k">Backend</span><span class="v">Python 3.11+ · Flask</span></li>
+          <li><span class="k">Contrato</span><span class="v">Solidity 0.8.20</span></li>
+          <li><span class="k">Red</span><span class="v">Polygon Amoy · 80002</span></li>
+          <li><span class="k">Persistencia</span><span class="v">SQLite</span></li>
+          <li><span class="k">Tests</span><span class="v">pytest · sin mocks</span></li>
+        </ul>
+        <div class="link-list">
+          <a href="https://github.com/dmbruno/verifika-API/blob/main/docs/api-spec.md" target="_blank" rel="noopener">Spec completa de la API</a>
+          <a href="https://github.com/dmbruno/verifika-API" target="_blank" rel="noopener">Repositorio en GitHub</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="fine-print">
+      <span><b>Red:</b> Polygon Amoy (testnet) · chainId 80002</span>
+      <span class="sep">·</span>
+      <span><b>Contrato:</b> <a href="https://amoy.polygonscan.com/address/0x6d152D528a6F079a85c341e8dd3ee0262B18aDAf" target="_blank" rel="noopener" class="tabular">0x6d15…8aDAf</a></span>
+      <span class="sep">·</span>
+      <span>MVP en testnet — no usar todavía para producción real</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var els = document.querySelectorAll('.reveal');
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
+  }
+</script>
+</body>
+</html>
