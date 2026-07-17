@@ -1,0 +1,22 @@
+### Verificar una foto (POST /verify)
+POST http://127.0.0.1:5000/verify
+Content-Type: multipart/form-data; boundary=----boundary123
+
+------boundary123
+Content-Disposition: form-data; name="image"; filename="sample.jpg"
+Content-Type: image/jpeg
+
+< ./sample.jpg
+------boundary123
+Content-Disposition: form-data; name="lat"
+
+-34.6037
+------boundary123
+Content-Disposition: form-data; name="lon"
+
+-58.3816
+------boundary123--
+
+### Consultar una verificacion (GET /verify/<id>)
+# Pegar aca el verification_id que devolvio el request de arriba
+GET http://127.0.0.1:5000/verify/10557562-5c1d-4332-b41d-0ce8bd1194de
