@@ -47,7 +47,7 @@ la verificación falla.
 | Capa | Tecnología |
 |---|---|
 | Backend | Python 3.11+, Flask |
-| Blockchain | web3.py, contrato en Solidity (`contracts/HashRegistry.sol`), Polygon Amoy (chainId `80002`) |
+| Blockchain | web3.py, `HashRegistry.sol` + `SimpleMultisig.sol`, Polygon Amoy (chainId `80002`) |
 | Persistencia | SQLite, sin ORM |
 | Imágenes / EXIF | Pillow |
 | Producción | Railway (gunicorn + volumen persistente) |
@@ -76,6 +76,7 @@ POLYGON_RPC_URL=   # endpoint RPC de Polygon Amoy, ej: https://polygon-amoy-bor-
 PRIVATE_KEY=       # private key de una wallet de testnet (nunca una wallet real)
 CONTRACT_ADDRESS=  # direccion del contrato HashRegistry ya deployado en Amoy
 SERVER_ADDRESS=    # direccion publica correspondiente a PRIVATE_KEY
+MULTISIG_ADDRESS=  # direccion del SimpleMultisig, owner de HashRegistry
 ```
 
 ⚠️ **Nunca commitees `.env`** — el `.gitignore` ya lo excluye, pero doble
@@ -85,16 +86,18 @@ La wallet necesita POL de testnet para pagar el gas de cada anclaje — se
 consigue gratis en el [faucet oficial de Polygon](https://faucet.polygon.technology)
 (red Amoy).
 
-Si todavía no deployaste el contrato, `contracts/deploy.py` lo compila y lo
-deploya usando esas mismas variables de entorno:
+Si todavía no deployaste los contratos, `contracts/deploy.py` compila y
+deploya **ambos** en secuencia: primero `SimpleMultisig` (con tu wallet como
+owner operativo y una segunda wallet de respaldo — ver la sección
+"Seguridad" más abajo), y después `HashRegistry` usando ese multisig como
+owner:
 
 ```bash
 python3 contracts/deploy.py
 ```
 
-Esto imprime la dirección del contrato deployado y guarda el ABI en
-`contracts/HashRegistry.abi.json` — copiá la dirección a `CONTRACT_ADDRESS`
-en tu `.env`.
+Esto imprime `MULTISIG_ADDRESS` y `CONTRACT_ADDRESS` y guarda ambos ABIs en
+`contracts/` — copiá las dos direcciones a tu `.env`.
 
 ### 3. Levantá el servidor
 
@@ -167,6 +170,31 @@ configurada en `.env`.
 pytest tests/ -v
 ```
 
+## 🔐 Seguridad: por qué un multisig
+
+`HashRegistry.registerHash()` no acepta llamadas de cualquiera — solo de su
+`owner`, que es el contrato `SimpleMultisig`. Ni siquiera la wallet operativa
+del servidor puede llamarlo directo (revierte con `"no autorizado"`); tiene
+que pasar por el multisig.
+
+El multisig tiene **2 owners** (la wallet operativa + una clave de respaldo
+guardada offline, fuera de este repo y del servidor) con **`required = 1`**:
+cualquiera de las dos puede operar sola, sin fricción extra en cada
+`POST /verify`. La clave de respaldo no está para exigir doble firma en cada
+anclaje — está para poder reemplazar a la wallet operativa (`removeOwner` +
+`addOwner`) si esa clave se pierde o se filtra, sin que el servicio quede
+huérfano.
+
+**Qué resuelve esto:** que perder o romper la clave operativa tire abajo el
+servicio para siempre.
+**Qué NO resuelve:** que la clave operativa, si es robada, siga operando
+sola — eso requeriría `required > 1` con un segundo aprobador humano real
+en cada operación, lo cual no aplica a un proyecto de un solo desarrollador.
+
+`SimpleMultisig.sol` es intencionalmente mínimo (no auditado) — suficiente
+para este MVP en testnet. Para producción/mainnet, la recomendación es
+migrar a una solución auditada como [Gnosis Safe](https://safe.global).
+
 ## 📐 Reglas de diseño
 
 - 🔒 Nunca se persiste la imagen original, solo su hash.
@@ -176,6 +204,8 @@ pytest tests/ -v
 - 🚫 Una misma imagen no puede verificarse dos veces — rechazo on-chain.
 - 🔑 `PRIVATE_KEY` y demás secrets solo por variables de entorno, nunca
   hardcodeados.
+- 🖊️ `registerHash()` solo puede llamarlo el multisig owner de `HashRegistry`
+  — no cualquier wallet.
 
 ## 📊 Estado del proyecto
 

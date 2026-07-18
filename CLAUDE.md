@@ -33,12 +33,15 @@ verifika-api/
 ├── .env.example
 ├── requirements.txt
 ├── contracts/
-│   ├── HashRegistry.sol
-│   └── HashRegistry.abi.json
+│   ├── HashRegistry.sol       # onlyOwner — solo el multisig puede registerHash()
+│   ├── HashRegistry.abi.json
+│   ├── SimpleMultisig.sol     # multisig de recuperacion (ver seccion Seguridad)
+│   ├── SimpleMultisig.abi.json
+│   └── deploy.py              # deploya ambos contratos en secuencia
 ├── app/
 │   ├── __init__.py
 │   ├── routes.py          # endpoints /verify y /verify/<id>
-│   ├── blockchain.py      # conexión web3, anchor_hash()
+│   ├── blockchain.py      # conexión web3, anchor_hash() via multisig
 │   ├── location.py        # extract_exif_gps(), distance_meters()
 │   └── db.py
 ├── tests/
@@ -55,6 +58,7 @@ POLYGON_RPC_URL=
 PRIVATE_KEY=
 CONTRACT_ADDRESS=
 SERVER_ADDRESS=
+MULTISIG_ADDRESS=
 
  
 ## Endpoints objetivo
@@ -67,6 +71,30 @@ GET /verify/<verification_id>
   responde: { "valid": bool, "tx_hash": str, "location_flag": str|null }
 
  
+## Seguridad — arquitectura de claves (multisig)
+- `HashRegistry.registerHash()` tiene `onlyOwner`: solo el contrato `SimpleMultisig`
+  puede llamarlo (verificado: ni siquiera la wallet operativa puede llamarlo
+  directo, revierte con "no autorizado")
+- `SimpleMultisig` tiene 2 owners (`required = 1`): la wallet operativa (`PRIVATE_KEY`
+  en `.env`/Railway) y una clave de respaldo guardada **offline, fuera de este
+  repo y de la infraestructura del servidor**
+- Por qué `required = 1` y no 2: con 2 se necesitaría aprobación manual en cada
+  `POST /verify`, matando la automatización del producto. Con 1, cualquiera de
+  las dos claves opera sola — la de respaldo sirve para recuperación
+  (`removeOwner`/`addOwner` si la clave operativa se pierde o se filtra), no
+  para exigir doble aprobación en cada anclaje
+- **Qué protege esto:** pérdida de la clave operativa (hardware roto, error
+  humano, etc.) — el sistema no queda huérfano, la clave de respaldo puede
+  reemplazarla
+- **Qué NO protege:** una clave operativa robada sigue pudiendo operar sola
+  mientras nadie note el robo y ejecute la recuperación con la clave de
+  respaldo. Esto es un multisig de recuperación, no un esquema de aprobación
+  dual — para eso hace falta `required > 1` y un segundo aprobador humano
+  real, lo cual no aplica todavía (dev único)
+- Para producción/mainnet, migrar a una solución auditada (Gnosis Safe /
+  Safe{Wallet}) en vez de `SimpleMultisig.sol`, que es intencionalmente
+  mínimo y sin auditar — suficiente para testnet, no para producción real
+
 ## Reglas de diseño (no romper)
 - Nunca persistir la imagen original, solo su hash
 - El hash que se ancla en blockchain es del REGISTRO completo (imagen + timestamp +
@@ -79,9 +107,12 @@ GET /verify/<verification_id>
  
 ## Estado de fases (Cowork: marcar con [x] al terminar cada una)
 - [x] Fase 0 — Setup entorno + wallet testnet
-- [x] Fase 1 — Smart contract deployado en Amoy (0x6d152D528a6F079a85c341e8dd3ee0262B18aDAf —
-  redeployado para agregar rechazo on-chain de imagen duplicada; la dirección
-  anterior 0x8BCd86...Aa4c8 quedó obsoleta)
+- [x] Fase 1 — Smart contract deployado en Amoy. Direcciones vigentes:
+  `HashRegistry` = `0xABfAC6be44300E0430c01b845423c226682dd153`,
+  `SimpleMultisig` (owner de HashRegistry) = `0xdEFd9A0Ae52BF272c40aca3797d96fb9606B4c40`.
+  Historial: v1 `0x8BCd86...Aa4c8` (sin rechazo de duplicados) → v2
+  `0x6d152D52...B18aDAf` (agrega rechazo de imagen duplicada) → v3 actual
+  (agrega `onlyOwner` + multisig de recuperación). Las anteriores quedaron obsoletas
 - [x] Fase 2 — Endpoints /verify y /verify/<id> con cruce de ubicación
 - [x] Fase 3 — Persistencia SQLite
 - [x] Fase 4 — Testing end-to-end en Amoy

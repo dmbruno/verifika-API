@@ -532,7 +532,7 @@
           <p class="lede">Verifika calcula la huella digital de una fotografía —imagen, momento y ubicación— y la ancla de forma inmutable en la blockchain de Polygon. Lo que se sella ahí, nadie lo puede alterar después. Ni el cliente, ni nosotros.</p>
           <div class="cta-row">
             <a class="stub primary" href="#desarrolladores">Ver documentación</a>
-            <a class="stub" href="https://amoy.polygonscan.com/address/0x6d152D528a6F079a85c341e8dd3ee0262B18aDAf" target="_blank" rel="noopener">Ver contrato on-chain</a>
+            <a class="stub" href="https://amoy.polygonscan.com/address/0xABfAC6be44300E0430c01b845423c226682dd153" target="_blank" rel="noopener">Ver contrato on-chain</a>
           </div>
         </div>
         <div class="seal-wrap">
@@ -599,8 +599,8 @@
         <div class="entry-code"><span class="n">03</span>ANCLAJE</div>
         <div>
           <h3>Ese hash se escribe en un smart contract</h3>
-          <p>En Polygon, público y permanente. El contrato además rechaza —on-chain— que una misma imagen se registre dos veces, sin importar qué timestamp o ubicación se declare la segunda vez.</p>
-          <span class="field">registerHash(imageHash, recordHash)</span>
+          <p>En Polygon, público y permanente. El contrato rechaza —on-chain— que una misma imagen se registre dos veces. Y solo acepta esta escritura de un multisig de recuperación (2 claves, ninguna en el mismo lugar) — ni siquiera nuestro propio servidor puede escribir ahí sin pasar por él.</p>
+          <span class="field">registerHash(imageHash, recordHash) · onlyOwner</span>
         </div>
       </div>
 
@@ -659,6 +659,7 @@ curl -X POST <span class="str">https://web-production-cf40e.up.railway.app/verif
         <ul class="manifest">
           <li><span class="k">Backend</span><span class="v">Python 3.11+ · Flask</span></li>
           <li><span class="k">Contrato</span><span class="v">Solidity 0.8.20</span></li>
+          <li><span class="k">Autorización</span><span class="v">multisig · 2 owners</span></li>
           <li><span class="k">Red</span><span class="v">Polygon Amoy · 80002</span></li>
           <li><span class="k">Persistencia</span><span class="v">SQLite</span></li>
           <li><span class="k">Tests</span><span class="v">pytest · sin mocks</span></li>
@@ -678,7 +679,9 @@ curl -X POST <span class="str">https://web-production-cf40e.up.railway.app/verif
     <div class="fine-print">
       <span><b>Red:</b> Polygon Amoy (testnet) · chainId 80002</span>
       <span class="sep">·</span>
-      <span><b>Contrato:</b> <a href="https://amoy.polygonscan.com/address/0x6d152D528a6F079a85c341e8dd3ee0262B18aDAf" target="_blank" rel="noopener" class="tabular">0x6d15…8aDAf</a></span>
+      <span><b>Contrato:</b> <a href="https://amoy.polygonscan.com/address/0xABfAC6be44300E0430c01b845423c226682dd153" target="_blank" rel="noopener" class="tabular">0xABfA…dd153</a></span>
+      <span class="sep">·</span>
+      <span><b>Owner (multisig):</b> <a href="https://amoy.polygonscan.com/address/0xdEFd9A0Ae52BF272c40aca3797d96fb9606B4c40" target="_blank" rel="noopener" class="tabular">0xdEFd…6B4c40</a></span>
       <span class="sep">·</span>
       <span>MVP en testnet — no usar todavía para producción real</span>
     </div>
